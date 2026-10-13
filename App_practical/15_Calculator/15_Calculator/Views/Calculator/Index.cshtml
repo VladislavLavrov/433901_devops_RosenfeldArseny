@@ -1,5 +1,8 @@
 ﻿@{
     ViewData["Title"] = "Мой самый лучший калькулятор";
+    var num1 = ViewBag.Num1 as double?;
+    var num2 = ViewBag.Num2 as double?;
+    var op = ViewBag.Operation?.ToString();
 }
 <h2>@ViewData["Title"]</h2>
 <form method="post" asp-controller="Calculator" asp-action="Calculate">
