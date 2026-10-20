@@ -1,7 +1,5 @@
 ﻿@model IEnumerable<_15_Calculator.Data.DataInputVariant>
-@{
-    ViewData["Title"] = "Калькулятор";
-}
+@{ ViewData["Title"] = "Калькулятор"; }
 
 <h2>Калькулятор с Kafka</h2>
 
@@ -30,13 +28,22 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (var item in Model)
+        @if (Model != null && Model.Any())
+        {
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Operand_1</td>
+                    <td>@item.Type_operation</td>
+                    <td>@item.Operand_2</td>
+                    <td>@item.Result</td>
+                </tr>
+            }
+        }
+        else
         {
             <tr>
-                <td>@item.Operand_1</td>
-                <td>@item.Type_operation</td>
-                <td>@item.Operand_2</td>
-                <td>@item.Result</td>
+                <td colspan="4">Нет данных для отображения</td>
             </tr>
         }
     </tbody>
