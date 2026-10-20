@@ -15,19 +15,16 @@ namespace _15_Calculator.Services
         public KafkaConsumerService(IConfiguration config, IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
-
             var consumerConfig = new ConsumerConfig
             {
                 BootstrapServers = config["Kafka:ConsumerSettings:BootstrapServers"],
-                GroupId = config["Kafka:ConsumerSettings:GroupId"] ?? "lavrov_15",
-                SaslMechanism = SaslMechanism.Plain,
-                SecurityProtocol = SecurityProtocol.Plaintext,
+                GroupId = config["Kafka:ConsumerSettings:GroupId"] ?? "rozenfeld_15_group",
                 AutoOffsetReset = AutoOffsetReset.Earliest,
-                EnableAutoCommit = true
+                EnableAutoCommit = true,
+                SocketTimeoutMs = 5000
             };
-
             _kafkaConsumer = new ConsumerBuilder<Null, string>(consumerConfig).Build();
-            _topic = config["Kafka:TopicName"] ?? "lavrov";
+            _topic = config["Kafka:TopicName"] ?? "rozenfeld_15";
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -39,34 +36,27 @@ namespace _15_Calculator.Services
                 try
                 {
                     var cr = _kafkaConsumer.Consume(stoppingToken);
+                    if (cr?.Message?.Value == null) continue;
+
                     var inputData = JsonSerializer.Deserialize<DataInputVariant>(cr.Message.Value);
 
                     if (inputData != null)
                     {
-                        // Считаем
                         var result = CalculatorLibrary.CalculateOperation(inputData.Operand_1, inputData.Operand_2, inputData.Type_operation);
                         inputData.Result = result.ToString();
 
-                        // Сохраняем в БД
                         using (var scope = _serviceProvider.CreateScope())
                         {
                             var context = scope.ServiceProvider.GetRequiredService<CalculatorContext>();
                             context.DataInputVariants.Add(inputData);
                             await context.SaveChangesAsync();
                         }
-
-                        Console.WriteLine($"Message key: {cr.Message.Key}, value: {cr.Message.Value}");
+                        Console.WriteLine($"Saved: {inputData.Operand_1} {inputData.Type_operation} {inputData.Operand_2} = {inputData.Result}");
                     }
                 }
                 catch (OperationCanceledException) { break; }
-                catch (ConsumeException e)
-                {
-                    if (e.Error.IsFatal) break;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Error: {e.Message}");
-                }
+                catch (ConsumeException e) { if (e.Error.IsFatal) break; }
+                catch (Exception e) { Console.WriteLine($"Error: {e.Message}"); }
             }
         }
 
