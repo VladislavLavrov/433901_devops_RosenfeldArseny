@@ -1,56 +1,46 @@
 using _15_Calculator.Data;
 using _15_Calculator.Models;
+using _15_Calculator.Services;
+using Confluent.Kafka;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace _15_Calculator.Controllers
 {
-    public enum Operation { Add, Subtract, Multiply, Divide }
-
     public class CalculatorController : Controller
     {
         private readonly CalculatorContext _context;
+        private readonly KafkaProducerHandler _producer;
 
-        public CalculatorController(CalculatorContext context)
+        public CalculatorController(CalculatorContext context, KafkaProducerHandler producer)
         {
             _context = context;
+            _producer = producer;
         }
 
-        [HttpGet]
         public IActionResult Index()
         {
-            return View();
+            var data = _context.DataInputVariants.OrderByDescending(x => x.ID_DataInputVariant).ToList();
+            return View(data);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Calculate(double num1, double num2, Operation operation)
+        public async Task<IActionResult> Calculate(double num1, double num2, Operation operation)
         {
-            double result = 0;
-            switch (operation)
-            {
-                case Operation.Add: result = num1 + num2; break;
-                case Operation.Subtract: result = num1 - num2; break;
-                case Operation.Multiply: result = num1 * num2; break;
-                case Operation.Divide: result = num1 / num2; break;
-            }
-
             var dataInputVariant = new DataInputVariant
             {
-                Operand_1 = num1.ToString(),
-                Operand_2 = num2.ToString(),
-                Type_operation = operation.ToString(),
-                Result = result.ToString()
+                Operand_1 = num1,
+                Operand_2 = num2,
+                Type_operation = operation,
             };
 
-            _context.DataInputVariants.Add(dataInputVariant);
-            _context.SaveChanges();
+            var json = JsonSerializer.Serialize(dataInputVariant);
+            var bytes = System.Text.Encoding.UTF8.GetBytes(json);
 
-            ViewBag.Result = result;
-            ViewBag.Num1 = num1;
-            ViewBag.Num2 = num2;
-            ViewBag.Operation = operation;
+            await _producer.ProduceAsync("rozenfeld_15", new Message<byte[], byte[]> { Value = bytes });
 
-            return View("Index");
+            return RedirectToAction(nameof(Index));
         }
     }
 }

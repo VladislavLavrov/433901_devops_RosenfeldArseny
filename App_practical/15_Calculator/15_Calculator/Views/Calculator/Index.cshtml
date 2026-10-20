@@ -1,23 +1,43 @@
-﻿@{
-    ViewData["Title"] = "Мой самый лучший калькулятор";
-    var num1 = ViewBag.Num1 as double?;
-    var num2 = ViewBag.Num2 as double?;
-    var op = ViewBag.Operation?.ToString();
+﻿@model IEnumerable<_15_Calculator.Data.DataInputVariant>
+@{
+    ViewData["Title"] = "Калькулятор";
 }
-<h2>@ViewData["Title"]</h2>
-<form method="post" asp-controller="Calculator" asp-action="Calculate">
+
+<h2>Калькулятор с Kafka</h2>
+
+<form method="post" asp-action="Calculate">
     @Html.AntiForgeryToken()
-    <input type="text" name="num1" required />
+    <input type="number" step="any" name="num1" required />
     <select name="operation" required>
-        <option value="Add">+</option>
-        <option value="Subtract">-</option>
-        <option value="Multiply">*</option>
-        <option value="Divide">/</option>
+        <option value="1">Сложение</option>
+        <option value="2">Вычитание</option>
+        <option value="3">Умножение</option>
+        <option value="4">Деление</option>
     </select>
-    <input type="text" name="num2" required />
-    <input type="submit" value="Calculate" />
+    <input type="number" step="any" name="num2" required />
+    <input type="submit" value="Посчитать!" />
 </form>
-@if (ViewBag.Result != null)
-{
-    <h3>Result: @ViewBag.Result</h3>
-}
+
+<hr />
+<h3>История операций:</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Операнд 1</th>
+            <th>Операция</th>
+            <th>Операнд 2</th>
+            <th>Результат</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Operand_1</td>
+                <td>@item.Type_operation</td>
+                <td>@item.Operand_2</td>
+                <td>@item.Result</td>
+            </tr>
+        }
+    </tbody>
+</table>
