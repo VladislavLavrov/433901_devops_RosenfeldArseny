@@ -15,48 +15,65 @@ namespace _15_Calculator.Services
         public KafkaConsumerService(IConfiguration config, IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
+
             var consumerConfig = new ConsumerConfig
             {
                 BootstrapServers = config["Kafka:ConsumerSettings:BootstrapServers"],
                 GroupId = config["Kafka:ConsumerSettings:GroupId"] ?? "rozenfeld_15_group",
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 EnableAutoCommit = true,
-                SocketTimeoutMs = 5000
+                SocketTimeoutMs = 5000,
+                // Добавляем чтение протокола безопасности (SSL)
+                SecurityProtocol = SecurityProtocol.Ssl
             };
+
             _kafkaConsumer = new ConsumerBuilder<Null, string>(consumerConfig).Build();
             _topic = config["Kafka:TopicName"] ?? "rozenfeld_15";
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _kafkaConsumer.Subscribe(_topic);
-
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                try
+                _kafkaConsumer.Subscribe(_topic);
+
+                while (!stoppingToken.IsCancellationRequested)
                 {
-                    var cr = _kafkaConsumer.Consume(stoppingToken);
-                    if (cr?.Message?.Value == null) continue;
-
-                    var inputData = JsonSerializer.Deserialize<DataInputVariant>(cr.Message.Value);
-
-                    if (inputData != null)
+                    try
                     {
-                        var result = CalculatorLibrary.CalculateOperation(inputData.Operand_1, inputData.Operand_2, inputData.Type_operation);
-                        inputData.Result = result.ToString();
+                        var cr = _kafkaConsumer.Consume(stoppingToken);
+                        if (cr?.Message?.Value == null) continue;
 
-                        using (var scope = _serviceProvider.CreateScope())
+                        var inputData = JsonSerializer.Deserialize<DataInputVariant>(cr.Message.Value);
+
+                        if (inputData != null)
                         {
-                            var context = scope.ServiceProvider.GetRequiredService<CalculatorContext>();
-                            context.DataInputVariants.Add(inputData);
-                            await context.SaveChangesAsync();
+                            var result = CalculatorLibrary.CalculateOperation(inputData.Operand_1, inputData.Operand_2, inputData.Type_operation);
+                            inputData.Result = result.ToString();
+
+                            using (var scope = _serviceProvider.CreateScope())
+                            {
+                                var context = scope.ServiceProvider.GetRequiredService<CalculatorContext>();
+                                context.DataInputVariants.Add(inputData);
+                                await context.SaveChangesAsync();
+                            }
+                            Console.WriteLine($"Saved: {inputData.Operand_1} {inputData.Type_operation} {inputData.Operand_2} = {inputData.Result}");
                         }
-                        Console.WriteLine($"Saved: {inputData.Operand_1} {inputData.Type_operation} {inputData.Operand_2} = {inputData.Result}");
+                    }
+                    catch (OperationCanceledException) { break; }
+                    catch (ConsumeException e)
+                    {
+                        Console.WriteLine($"Kafka Consume Error: {e.Error.Reason}");
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"General Error: {e.Message}");
                     }
                 }
-                catch (OperationCanceledException) { break; }
-                catch (ConsumeException e) { if (e.Error.IsFatal) break; }
-                catch (Exception e) { Console.WriteLine($"Error: {e.Message}"); }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FATAL KAFKA ERROR: {ex.Message}");
             }
         }
 
