@@ -25,7 +25,7 @@ namespace _15_Calculator.Controllers
         }
 
         [HttpPost]
-        //[ValidateAntiForgeryToken]
+        // юрпхаср ValidateAntiForgeryToken сдюкем!
         public async Task<IActionResult> Calculate(double num1, double num2, Operation operation)
         {
             var dataInputVariant = new DataInputVariant

@@ -15,18 +15,14 @@ namespace _15_Calculator.Services
         public KafkaConsumerService(IConfiguration config, IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
-
             var consumerConfig = new ConsumerConfig
             {
                 BootstrapServers = config["Kafka:ConsumerSettings:BootstrapServers"],
                 GroupId = config["Kafka:ConsumerSettings:GroupId"] ?? "rozenfeld_15_group",
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 EnableAutoCommit = true,
-                SocketTimeoutMs = 5000,
-                // Добавляем чтение протокола безопасности (SSL)
-                SecurityProtocol = SecurityProtocol.Ssl
+                SocketTimeoutMs = 5000
             };
-
             _kafkaConsumer = new ConsumerBuilder<Null, string>(consumerConfig).Build();
             _topic = config["Kafka:TopicName"] ?? "rozenfeld_15";
         }
@@ -57,23 +53,16 @@ namespace _15_Calculator.Services
                                 context.DataInputVariants.Add(inputData);
                                 await context.SaveChangesAsync();
                             }
-                            Console.WriteLine($"Saved: {inputData.Operand_1} {inputData.Type_operation} {inputData.Operand_2} = {inputData.Result}");
+                            Console.WriteLine($"УСПЕХ! Сохранено в БД: {inputData.Operand_1} {inputData.Type_operation} {inputData.Operand_2} = {inputData.Result}");
                         }
                     }
                     catch (OperationCanceledException) { break; }
-                    catch (ConsumeException e)
-                    {
-                        Console.WriteLine($"Kafka Consume Error: {e.Error.Reason}");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine($"General Error: {e.Message}");
-                    }
+                    catch (Exception e) { Console.WriteLine($"Ошибка консьюмера: {e.Message}"); }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"FATAL KAFKA ERROR: {ex.Message}");
+                Console.WriteLine($"ФАТАЛЬНАЯ ОШИБКА KAFKA: {ex.Message}");
             }
         }
 
