@@ -23,7 +23,7 @@ services:
     depends_on:
       - mariadb
     extra_hosts:
-      - "kafka:93.88.178.186"
+      - "kafka:host-gateway"
 
 volumes:
   mariadb_data:
