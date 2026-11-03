@@ -22,6 +22,8 @@ services:
       - "0.0.0.0:6015:5015"
     depends_on:
       - mariadb
+    extra_hosts:
+      - "kafka:93.88.178.186"
 
 volumes:
   mariadb_data:
