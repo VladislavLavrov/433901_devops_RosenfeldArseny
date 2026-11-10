@@ -3,27 +3,35 @@ services:
     container_name: web-mariadb-15
     hostname: mariadb
     image: mariadb:10.5
-    restart: always
+    restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: password
-      MARIADB_DATABASE: webdb
+      MARIADB_DATABASE: 15-WebCalculatorDb
       MARIADB_USER: webdb
       MARIADB_PASSWORD: password
     ports:
       - "0.0.0.0:5033:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   web:
     container_name: web-app-calculator-15
     hostname: app
-    build: 15_Calculator/
+    build:
+      context: ./15_Calculator
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "0.0.0.0:6015:5015"
     depends_on:
-      - mariadb
-    extra_hosts:
-      - "kafka:host-gateway"
+      mariadb:
+        condition: service_healthy
 
 volumes:
   mariadb_data:

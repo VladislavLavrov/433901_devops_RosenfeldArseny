@@ -1,52 +1,77 @@
-﻿@model IEnumerable<_15_Calculator.Data.DataInputVariant>
+@model List<_15_Calculator.Data.DataInputVariant>
 @{
     ViewData["Title"] = "Калькулятор";
 }
 
-<h2>Калькулятор с Kafka</h2>
+<h2>Калькулятор с Apache Kafka</h2>
 
-<form method="post" asp-action="Calculate">
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-info">@TempData["Info"]</div>
+}
+
+<form asp-action="Calculate" asp-controller="Calculator" method="post">
     @Html.AntiForgeryToken()
-    <input type="number" step="any" name="num1" required />
-    <select name="operation" required>
-        <option value="1">Сложение</option>
-        <option value="2">Вычитание</option>
-        <option value="3">Умножение</option>
-        <option value="4">Деление</option>
-    </select>
-    <input type="number" step="any" name="num2" required />
-    <input type="submit" value="Посчитать!" />
+
+    <div style="margin-bottom: 8px;">
+        <label>Первое число:</label>
+        <input type="number" step="any" name="num1" required />
+    </div>
+
+    <div style="margin-bottom: 8px;">
+        <label>Второе число:</label>
+        <input type="number" step="any" name="num2" required />
+    </div>
+
+    <div style="margin-bottom: 8px;">
+        <label>Операция:</label>
+        <select name="operation">
+            <option value="1">Сложение (+)</option>
+            <option value="2">Вычитание (−)</option>
+            <option value="3">Умножение (×)</option>
+            <option value="4">Деление (÷)</option>
+        </select>
+    </div>
+
+    <button type="submit" style="margin-top: 10px;">Вычислить</button>
 </form>
 
-<hr />
-<h3>История операций:</h3>
-<table class="table">
-    <thead>
-        <tr>
-            <th>Операнд 1</th>
-            <th>Операция</th>
-            <th>Операнд 2</th>
-            <th>Результат</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (Model != null && Model.Any())
-        {
+<hr style="margin-top: 30px;" />
+
+<h3>История операций</h3>
+
+@if (Model == null || Model.Count == 0)
+{
+    <p>Пока операций нет.</p>
+}
+else
+{
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Операнд 1</th>
+                <th>Операнд 2</th>
+                <th>Операция</th>
+                <th>Результат</th>
+            </tr>
+        </thead>
+        <tbody>
             @foreach (var item in Model)
             {
                 <tr>
+                    <td>@item.ID_DataInputVariant</td>
                     <td>@item.Operand_1</td>
-                    <td>@item.Type_operation</td>
                     <td>@item.Operand_2</td>
+                    <td>@item.Type_operation</td>
                     <td>@item.Result</td>
                 </tr>
             }
-        }
-        else
-        {
-            <tr>
-                <td colspan="4">Нет данных для отображения</td>
-            </tr>
-        }
-    </tbody>
-</table>
+        </tbody>
+    </table>
+}
