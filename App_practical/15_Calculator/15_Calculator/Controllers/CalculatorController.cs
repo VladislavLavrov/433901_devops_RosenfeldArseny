@@ -1,77 +1,51 @@
-using _15_Calculator.Data;
-using _15_Calculator.Models;
-using _15_Calculator.Services;
-using Confluent.Kafka;
+using Calculator.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using System.Text.Json;
 
-namespace _15_Calculator.Controllers
+namespace Calculator.Controllers;
+
+public class CalculatorController : Controller
 {
-    public class CalculatorController : Controller
+    [HttpGet]
+    public IActionResult Index()
     {
-        private readonly CalculatorContext _context;
-        private readonly KafkaProducerService<Null, string> _producer;
-        private readonly string _topic;
+        return View(new CalculatorViewModel());
+    }
 
-        public CalculatorController(
-            CalculatorContext context,
-            KafkaProducerService<Null, string> producer,
-            IConfiguration configuration)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Index(CalculatorViewModel model)
+    {
+        if (!ModelState.IsValid || model.FirstNumber is null || model.SecondNumber is null)
         {
-            _context = context;
-            _producer = producer;
-            _topic = configuration["Kafka:TopicName"]
-                ?? throw new InvalidOperationException("Kafka:TopicName is not configured.");
+            model.Error = "Введите оба числа.";
+            return View(model);
         }
 
-        public IActionResult Index()
-        {
-            var data = _context.DataInputVariants
-                .OrderByDescending(x => x.ID_DataInputVariant)
-                .ToList();
+        var first = model.FirstNumber.Value;
+        var second = model.SecondNumber.Value;
 
-            return View(data);
+        switch (model.Operation)
+        {
+            case "+":
+                model.Result = first + second;
+                break;
+            case "-":
+                model.Result = first - second;
+                break;
+            case "*":
+                model.Result = first * second;
+                break;
+            case "/" when second != 0:
+                model.Result = first / second;
+                break;
+            case "/":
+                model.Error = "На ноль делить нельзя.";
+                break;
+            default:
+                model.Error = "Выбрана неизвестная операция.";
+                break;
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Calculate(double num1, double num2, Operation operation)
-        {
-            if (operation == Operation.Divide && num2 == 0)
-            {
-                TempData["Error"] = "Делить на ноль нельзя.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var dataInputVariant = new DataInputVariant
-            {
-                Operand_1 = num1,
-                Operand_2 = num2,
-                Type_operation = operation
-            };
-
-            var json = JsonSerializer.Serialize(dataInputVariant);
-
-            await _producer.ProduceAsync(
-                _topic,
-                new Message<Null, string> { Value = json });
-
-            TempData["Info"] = $"Запрос отправлен в Kafka (топик {_topic}). Результат появится после обработки сообщения.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        // Kafka Consumer вызывает этот метод после вычисления результата.
-        [HttpPost]
-        public async Task<IActionResult> Callback([FromBody] DataInputVariant inputData)
-        {
-            if (inputData == null)
-                return BadRequest();
-
-            _context.DataInputVariants.Add(inputData);
-            await _context.SaveChangesAsync();
-
-            return Ok();
-        }
+        return View(model);
     }
 }
